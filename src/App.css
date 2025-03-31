@@ -60,3 +60,10 @@
 .chat-scroll::-webkit-scrollbar {
   display: none;                       /* Chrome, Safari */
 }
+.no-shadow {
+  box-shadow: none; /* Remove shadow */
+}
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+}

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, Minus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +11,24 @@ interface Message {
   showOptions?: boolean;
 }
 
+// Typewriter hook
+function useTypewriter(text: string, speed: number = 50) {
+  const [displayedText, setDisplayedText] = useState('');
+
+  useEffect(() => {
+    let current = 0;
+    const interval = setInterval(() => {
+      setDisplayedText(text.slice(0, current + 1));
+      current++;
+      if (current === text.length) clearInterval(interval);
+    }, speed);
+
+    return () => clearInterval(interval);
+  }, [text, speed]);
+
+  return displayedText;
+}
+
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -20,6 +37,10 @@ function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [welcomeShown, setWelcomeShown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const fullTitle = 'Automate WOTC Prescreening with AI Assistance';
+  const typedTitle = useTypewriter(fullTitle, 40);
+  const titleDone = typedTitle.length === fullTitle.length;
 
   useEffect(() => {
     scrollToBottom();
@@ -90,9 +111,11 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 relative font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-[#d7ebf6] via-[#c5e0f3] to-[#e7f0fb] font-sans">
+    
       {/* Navbar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white shadow-sm">
+      
+      <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-br from-blue-50 via-white to-blue-100">
         <div className="flex items-center space-x-3">
           <img src="https://img.icons8.com/color/48/bot.png" alt="Logo" className="h-8 w-8" />
           <span className="text-xl font-bold text-gray-800">FMS AI</span>
@@ -101,20 +124,39 @@ function App() {
       </div>
 
       {/* Hero Section */}
-      <div className="px-6 py-20 text-left max-w-4xl mx-auto">
-        <h1 className="text-5xl font-bold text-gray-800 mb-4 leading-tight">
-          Automate WOTC Prescreening with AI Assistance
-        </h1>
-        <p className="text-gray-600 text-lg max-w-xl">
-          Save time and capture tax credits effortlessly using our pre-screening assistant tailored for your business.
-        </p>
-        <button
-          onClick={() => setShowChat(true)}
-          className="mt-6 px-6 py-3 bg-gradient-to-r from-green-400 via-green-500 to-green-600 text-white rounded-full font-medium shadow-lg hover:scale-105 transition"
+      <div className="mt-40 mb-20 max-w-4xl ml-[10%] pr-4">
+        <motion.h1
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-5xl font-bold text-gray-800 mb-4 leading-tight min-h-[4rem]"
         >
-          Launch Chatbot
-        </button>
-      </div>
+          {typedTitle}
+        </motion.h1>
+
+  {titleDone && (
+    <>
+      <motion.p
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="text-gray-600 text-lg max-w-2xl"
+      >
+        Save time and capture tax credits effortlessly using our pre-screening assistant tailored for your business.
+      </motion.p>
+
+      <motion.button
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2, duration: 0.4 }}
+        onClick={() => setShowChat(true)}
+        className="mt-6 px-6 py-3 bg-gradient-to-r from-green-400 via-green-500 to-green-600 text-white rounded-full font-medium shadow-lg hover:scale-105 transition"
+      >
+        Launch Chatbot
+      </motion.button>
+    </>
+  )}
+</div>
 
       {/* Bot icon */}
       {!showChat && (
@@ -132,13 +174,13 @@ function App() {
       {/* Chat Window */}
       {showChat && (
         <motion.div
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="fixed bottom-6 right-6 w-full max-w-md h-[700px] rounded-[30px] bg-white shadow-xl flex flex-col border overflow-hidden z-40"
-        >
+        initial={{ opacity: 0, y: 60 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="fixed bottom-6 right-6 w-full max-w-sm h-[550px] rounded-[30px] bg-white shadow-xl flex flex-col border overflow-hidden z-40"
+      >
           {/* Chat header */}
-          <div className="relative px-5 py-4 bg-gradient-to-r from-green-400 via-green-500 to-green-600 rounded-t-[30px] flex items-center justify-between">
+          <div className="relative px-5 py-4 bg-gradient-to-br from-blue-50 via-white to-blue-100 rounded-t-[30px] flex items-center justify-between">
             <div className="flex items-center">
               <motion.div
                 initial={{ scale: 0 }}
@@ -153,15 +195,15 @@ function App() {
                 />
               </motion.div>
               <div>
-                <h2 className="text-lg font-semibold text-white">WOTC Chat Assistant</h2>
-                <p className="text-xs text-green-100">You're chatting with the bot</p>
+                <h2 className="text-lg font-semibold text-gray-800">WOTC Chat Assistant</h2>
+                <p className="text-xs text-gray-500">You're chatting with the bot</p>
               </div>
             </div>
             <div className="flex space-x-3">
-              <button onClick={() => setShowChat(false)} className="text-white hover:text-gray-200">
+              <button onClick={() => setShowChat(false)} className="text-gray-700 hover:text-gray-900">
                 <Minus className="w-4 h-4" />
               </button>
-              <button onClick={() => window.location.reload()} className="text-white hover:text-gray-200">
+              <button onClick={() => window.location.reload()} className="text-gray-700 hover:text-gray-900">
                 <X className="w-4 h-4" />
               </button>
             </div>

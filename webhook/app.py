@@ -1,4 +1,3 @@
-# ---------- backend/main.py ----------
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -6,7 +5,6 @@ from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 import os
 from google.cloud import dialogflow_v2 as dialogflow
-import json
 
 load_dotenv()
 
@@ -14,88 +12,71 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+DIALOGFLOW_PROJECT_ID = os.getenv("DIALOGFLOW_PROJECT_ID")
+DIALOGFLOW_LANGUAGE_CODE = "en"
+
 class Message(BaseModel):
     message: str
-    session_id: Optional[str] = "123456"
+    session_id: Optional[str] = "default-session"
     context: Optional[Dict[str, Any]] = {}
-
-
-with open('wotc_question_flow.json', 'r') as f:
-    question_flow = json.load(f)
-
-def get_step(step_id):
-    return next((step for step in question_flow if step["id"] == step_id), None)
+    event: Optional[bool] = False
 
 @app.post("/webhook")
 async def webhook(message: Message):
     try:
-        user_input = message.message.strip().lower()
-        session_id = message.session_id
-        context = message.context or {}
+        print("📩 Incoming message:", message)
 
-        if user_input == "__welcome__":
-            return {
-                "response": "👋 Hello! Would you like to check your eligibility for WOTC? (yes or no)",
-                "context": {
-                    "currentStepId": "start",
-                    "answers": {},
-                    "eligibility": []
+        session_client = dialogflow.SessionsClient()
+        session = session_client.session_path(DIALOGFLOW_PROJECT_ID, message.session_id)
+
+        if message.event:
+            query_input = dialogflow.QueryInput(
+                event=dialogflow.EventInput(name="WELCOME", language_code=DIALOGFLOW_LANGUAGE_CODE)
+            )
+        else:
+            query_input = dialogflow.QueryInput(
+                text=dialogflow.TextInput(text=message.message, language_code=DIALOGFLOW_LANGUAGE_CODE)
+            )
+
+        response = session_client.detect_intent(
+            request={"session": session, "query_input": query_input}
+        )
+
+        result = response.query_result
+
+        # ✅ Extract parameters (no _pb, no MessageToDict)
+        parameters = {k: result.parameters.get(k) for k in result.parameters}
+
+        # ✅ Extract output contexts (as names only)
+        output_contexts = [ctx.name for ctx in result.output_contexts]
+
+        # ✅ Extract payload manually
+        # ✅ Extract payload manually — SAFE
+        next_question_payload = None
+        for msg in result.fulfillment_messages:
+            if msg.payload and "nextQuestion" in msg.payload:
+                q = msg.payload["nextQuestion"]
+                next_question_payload = {
+                    "id": q.get("id", ""),
+                    "text": q.get("text", ""),
+                    "type": q.get("type", "text"),
                 }
-            }
 
-        current_step_id = context.get("currentStepId", "start")
-        answers = context.get("answers", {})
-        eligibility = context.get("eligibility", [])
-
-        if current_step_id == "start":
-            if user_input in ["no", "nah"]:
-                return {"response": "👍 No problem. Come back anytime!"}
-            elif user_input in ["yes", "yep"]:
-                step = get_step("dob")
-                return {
-                    "response": step["question"],
-                    "context": {"currentStepId": step["id"], "answers": answers, "eligibility": eligibility}
-                }
-            else:
-                return {"response": "Please reply with 'yes' or 'no' to begin."}
-
-        current_step = get_step(current_step_id)
-        answers[current_step_id] = user_input
-
-        if current_step.get("eligibility"):
-            tags = current_step["eligibility"].get(user_input)
-            if tags:
-                eligibility.extend(tags)
-
-        next_step_id = None
-        if isinstance(current_step.get("next"), dict):
-            next_step_id = current_step["next"].get(user_input)
-        elif isinstance(current_step.get("next"), str):
-            next_step_id = current_step["next"]
-
-        if not next_step_id:
-            return {
-                "response": f"✅ Screening complete. You may be eligible under: {', '.join(eligibility) or 'No categories'}.",
-                "context": {"answers": answers, "eligibility": eligibility}
-            }
-
-        next_step = get_step(next_step_id)
         return {
-            "response": next_step["question"],
-            "context": {
-                "currentStepId": next_step_id,
-                "answers": answers,
-                "eligibility": eligibility
-            }
+            "response": result.fulfillment_text,
+            "intent": result.intent.display_name,
+            "confidence": result.intent_detection_confidence,
+            "parameters": parameters,
+            "output_contexts": output_contexts,
+            "nextQuestion": next_question_payload
         }
 
     except Exception as e:
-        print("❌ ERROR:", str(e))
+        print("❌ Dialogflow Error:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
-

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 import os
+import json
 from google.cloud import dialogflow_v2 as dialogflow
 import json
 
@@ -25,8 +26,26 @@ class Message(BaseModel):
     session_id: Optional[str] = "123456"
     context: Optional[Dict[str, Any]] = {}
 
+# question_flow = [
+#     {"id": "dob", "question": "What is your date of birth?", "type": "date", "next": "unemployed"},
+#     {"id": "unemployed", "question": "Have you been unemployed for 27 weeks or more in the past year?", "type": "yesno", "next": {"yes": "unemp-benefits", "no": "tanf"}},
+#     {"id": "unemp-benefits", "question": "Did you receive unemployment compensation during that time?", "type": "yesno", "eligibility": {"yes": ["Long-Term Unemployed"]}, "next": "tanf"},
+#     {"id": "tanf", "question": "Have you received TANF (welfare) in the last 18 months?", "type": "yesno", "eligibility": {"yes": ["TANF Recipient"]}, "next": "snap"},
+#     {"id": "snap", "question": "Have you or your household received SNAP (food stamps) in the last 15 months?", "type": "yesno", "eligibility": {"yes": ["SNAP Recipient"]}, "next": "felon"},
+#     {"id": "felon", "question": "Have you been convicted of a felony?", "type": "yesno", "next": {"yes": "felon-details", "no": "veteran"}},
+#     {"id": "felon-details", "question": "Were you released from prison within the last 12 months?", "type": "yesno", "eligibility": {"yes": ["Ex-Felon"]}, "next": "veteran"},
+#     {"id": "veteran", "question": "Have you served in the U.S. military?", "type": "yesno", "next": {"yes": "veteran-details", "no": "rehab"}},
+#     {"id": "veteran-details", "question": "Are you a disabled veteran or have been unemployed for 4+ weeks in the past year?", "type": "yesno", "eligibility": {"yes": ["Qualified Veteran"]}, "next": "rehab"},
+#     {"id": "rehab", "question": "Have you been referred to this job by a rehab program, SSI, or ticket-to-work?", "type": "yesno", "eligibility": {"yes": ["VR/SSI Referral"]}, "next": "zipcode"},
+#     {"id": "zipcode", "question": "What is your current ZIP code?", "type": "zip", "checkEmpowermentZone": True, "eligibility": {"inZone": ["Empowerment Zone Youth"]}}
+# ]
 
-with open('wotc_question_flow.json', 'r') as f:
+# Load the JSON file once
+file_path = "question_flow.json"
+if os.path.getsize(file_path) == 0:
+    raise ValueError("question_flow.json is empty!")
+
+with open(file_path) as f:
     question_flow = json.load(f)
 
 def get_step(step_id):
